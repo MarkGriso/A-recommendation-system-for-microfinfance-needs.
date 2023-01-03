@@ -11,6 +11,7 @@ The file with which to use the final system is the second one. The dataset to be
 
 
 RESULTS:
+
 ![image](https://user-images.githubusercontent.com/95644969/210348873-5315998e-0eb4-4b9d-a03b-562f094e061d.png)
 
 By entering any word within the space provided, the system will bring up all words containing that particular word. The user can then decide which presitite he/she prefers depending on the additional features present. 
