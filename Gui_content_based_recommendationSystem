@@ -1,0 +1,221 @@
+import csv
+from tkinter.ttk import Treeview
+
+import pandas as pd
+import numpy as np
+from sentence_transformers import SentenceTransformer
+import pandas as pd
+import seaborn as sns
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.cluster import KMeans
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+from adjustText import adjust_text
+import mplcursors
+import matplotlib.pyplot as plt
+import seaborn as sns
+# import degli altri script
+
+import functions_for_GUI as rs2
+# impostazione per stampare e leggere tutte le stringhe per intero
+pd.options.display.max_colwidth = 100
+
+###TKINTER ATTEMPT
+from tkinter import *
+
+class TheGui:
+    def __init__(self, window):
+        self.window = window
+        window.title('The Gui')
+
+        def show_data():
+            txt.delete('1.0', END)
+            possible_loans = ent.get()  # sto costrunedo una gui dove x ora hai ottenuto l'index del loan e inserisci quello
+            loans_user_like = possible_loans
+            loans_with_word = rs2.get_loans_from_keyword(loans_user_like)
+            print('The loans with the searched word are: \n',loans_with_word)
+
+            cols = list(loans_with_word.columns)
+
+            '''content = Frame(root)'''
+            tree = Treeview(root, columns=cols, show='headings')
+            # posizionamento tree and content
+            tree.grid(row=3,column=0, sticky=(N, S, E, W), columnspan= 300)
+            '''content.grid(row=3, column=0, sticky=(N, S, E, W))'''
+            tree["columns"] = cols
+            for i in cols:
+                tree.column(i, width=70, anchor="w")
+                tree.heading(i, text=i, anchor='w')
+
+                if i == 'sector':
+                    tree.column(i, width=100, anchor="w")
+                    tree.heading(i, text=i, anchor='w')
+
+                if i == 'use':
+                    tree.column(i, width=300, anchor="w")
+                    tree.heading(i, text=i, anchor='w')
+
+                if i == 'overall_infos':
+                    tree.column(i, width=0, anchor="w")
+                    tree.heading(i, text='', anchor='w')
+
+
+
+            for index, row in loans_with_word.iterrows():
+                tree.insert("", 0, text=index, values=list(row))
+
+
+            # Label, button and grids SECOND RESULTS
+
+            self.suggestionLabel1 = Label(window, text='please insert the found id: ')
+            self.suggestionLabel2 = Label(window, text='Top ten suggestion for the chosen loan: ')
+
+            self.ent2 = Entry(root)
+            self.ent2.grid(row=10, column=1)
+
+            self.suggestionLabel1.grid(row=10)
+            self.suggestionLabel2.grid(row=12)
+
+            # qui viene creato il quadrato per display le raccomandazioni
+            txt2 = Text(root, width=140, height=25, wrap=WORD)
+            txt2.grid(row=13, columns=1, sticky=W, columnspan = 10)
+            '''   btn2 = Button(root, text='Search2', bg='purple', fg='white', command=function_for_results)
+            btn2.grid(row=11)'''
+
+            # NEW FUNCTION FOR SIMILAR LOANS
+            def function_for_results():
+                global interested_id
+                txt.delete('1.0', END)
+                interested_id = int(self.ent2.get())
+                loan_index = rs2.get_index_from_id(interested_id)
+                print('the loan index is \n', loan_index)
+
+
+                score = list(enumerate(rs2.cosine_distance[loan_index]))
+
+                # now sort the similar loans in descending order
+                sorted_score = sorted(score, key=lambda x: x[1], reverse=True) # Reverse=True FOR COSINE
+
+                #aggiungo lo score come nuova colonna del dataframe nela speranza di riuscire a stamparlo come info
+                score_to_print = [item[1] for item in score]
+                #arrotondo i numeri per maggior chiarezza
+                score_to_print = [round(item, 4) for item in score_to_print]
+                #print('sono qua\n',score_to_print)
+                #print(type(score_to_print))
+                rs2.df['sorted_score'] = np.array(score_to_print)
+                print('vedi un po\n' ,rs2.df)
+                # we will ignore the first score because it will give us a 100% score because it's the same movie
+                sorted_score = sorted_score[1:]
+
+                # funzione per displayare i prestiti finali
+                def get_loans_from_index1(index):
+                    #ogni volta che chiamo la funzione si cancellano anche i prestiti presenti nei risultati dei prestiti
+                    txt2.delete('1.0', END)
+                    # var converted
+                    x1 = rs2.df[rs2.df.index == index]["activity"].values[0]
+                    x2 = rs2.df[rs2.df.index == index]["sector"].values[0]
+                    x3 = rs2.df[rs2.df.index == index]["use"].values[0]  # modifico la funzione in modo che nell'output si vedano anche le altre variabili legate al filtro.
+                    x4 = rs2.df[rs2.df.index == index]["country"].values[0]
+                    x5 = rs2.df[rs2.df.index == index]["currency"].values[0]
+                    x6 = rs2.df[rs2.df.index == index]["borrower_genders"].values[0]
+                    x7 = rs2.df[rs2.df.index == index]["loan_amount"].values[0]
+                    x11 = rs2.df[rs2.df.index == index]["region"].values[0]
+                    # var not converted
+                    x8 = rs2.df[rs2.df.index == index]["sorted_score"].values[0]
+                    x9 = rs2.df[rs2.df.index == index]["id"].values[0]
+                    x10 = rs2.df[rs2.df.index == index]["lender_count"].values[0]
+                    w = x1 + x2 + x3 + str(x4)
+
+                    return 'ID:',x9,'ACTIVITY', x1, 'SECTOR', x2,'USE:',x3, 'COUNTRY:',x4,'CURR:',x5,'BORROWER GENDER:',x6,'AMOUNT', x7,'REGION', x11, 'TOT. LENDERS:', x10 ,'DISTANCE =', x8
+
+
+                # show of the similar loans per index adn similarity score
+                print('sorted score of the 10 similar loans (cosine distance)\n',sorted_score[0:10])
+
+                i = 0
+                j = 0
+                List = [None] * 10
+                for element in sorted_score:
+                    List[j] = get_loans_from_index1(element[0])
+                    j = j + 1
+
+
+                    i = i + 1
+                    if i >= 10:
+                        print(List)
+                        print(List[0])
+                        s = ' '.join(str(item)for item in List[0])
+                        print('s\n',s)
+                        break
+
+
+                for x in range(len(List) - 1, -1, -1):
+                    t = '\n\n'
+
+
+                    strings = ' '.join(str(item) for item in List[x])
+                    txt2.insert('1.0', str(strings))
+                    #txt2.insert('1.0', 'ciao')
+                    txt2.insert('1.0', t)
+
+            # funzione per stampare solo il prestito cercato con Id in Gui nel documento dei risultati
+
+                def get_loans_from_keyword(id):
+                    out = rs2.df.loc[rs2.df['id'] == interested_id]
+                    out = out.iloc[:,[1,2,3,4,5,6,7,8,9,10,11,15,16,18]]
+                    # in questa riga elimino la visualizzazione di 'overall info' in modo da tenerla pulita nella gui
+                    return out
+
+                self.loan_interested = get_loans_from_keyword(interested_id)
+                print('the row containing the id is: \n', self.loan_interested.to_markdown())
+                print(rs2.df.columns)
+
+
+
+            # funzione per salvare i risultati cercati
+            def creating_writing_file():
+                output = txt2.get(1.0, END)
+                f = open(r"C:/Users/142870/Desktop/PROGETTI PYTHON/TESI/Risutati esperimenti/esperimento_gender_manip", 'a+')
+                # writing the new label, 'to.markdown consente la visualizzazione intera nel documento salvato'
+                f.write(f'THE SEARCHED LOAN IS \n{self.loan_interested.to_markdown()}\n\n Results are:\n {txt2.get(1.0, END)}\n  \n')
+                # close the file when done
+
+
+
+
+            btn2 = Button(root, text='Search2', bg='purple', fg='white', command=function_for_results)
+            btn2.grid(row=11)
+
+
+            save_results = Button(root, text='Save results', bg='yellow', fg='black', command=creating_writing_file)
+            save_results.grid(row=11, column=10)
+
+
+
+        #### COSTRUZIONE GUI
+
+
+        root.geometry('1300x1000')
+        # Label and grid for the FIRST RESULT
+        l1 = Label(root, text='Enter a keyword of your interest for the Loan: ')
+        l2 = Label(root, text='Here are the loans regarding this topic: ')
+
+        ent = Entry(root)
+
+        l1.grid(row=0)
+        l2.grid(row=2)
+
+        ent.grid(row=0, column=1, columnspan=10, sticky = W)
+
+        # qui viene creato il quadrato per display le raccomandazioni
+        txt = Text(root, width=50, height=13, wrap=WORD)
+        #txt.grid(row=3, columns=2, sticky=W)
+        btn = Button(root, text='Search', bg='purple', fg='white', command=show_data)
+        btn.grid(row=1)
+
+
+
+root = Tk()
+my_gui = TheGui(root)
+root.mainloop()
