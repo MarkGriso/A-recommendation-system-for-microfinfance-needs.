@@ -11,4 +11,4 @@ The file with which to use the final system is the second one. The dataset to be
 
 
 RESULTS:
-![image](https://user-images.githubusercontent.com/95644969/210348719-07546acd-9ee3-41b4-bb11-acc15d46a523.png)
+![image](https://user-images.githubusercontent.com/95644969/210348873-5315998e-0eb4-4b9d-a03b-562f094e061d.png)
