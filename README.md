@@ -4,7 +4,7 @@ Code showing my master thesis project
 This project set out to develop a content-based recommendation system. 
 The dataset used was that released by the Mircoredito Kiva platform, one of the largest microcredit platforms in the world. 
 
- HOW TO USE:
+ HOW TO USE TEH SYSTEM:
  
 The system can be used by importing the two files 'Functions_for_recommendationSystem_Gui' and 'Gui_content_based_recommendationSystem'. 
 The file with which to use the final system is the second one. The dataset to be imported is Kiva_loans_20k. The file has been reduced to twenty thousand observations for convenience. The files imported periodically by Kiva can exceed half a million observations.
@@ -21,6 +21,7 @@ By selecting the ID and inserting it into the label provided, it will then be po
 It then becomes possible to display all loans that are most similar to the one selected, resulting in the cosine distance used for this purpose.
 
 DIFFERENT APPROACHES:
+
 ![image](https://user-images.githubusercontent.com/95644969/210350694-ba6e7c0d-edcf-434c-9ff6-5b0ce3776474.png)
 
 Within the code in the two selected files you will find sections where an approach was developed to convert the selected variables even with different distances including Euclidean and Levenshtein distances.
