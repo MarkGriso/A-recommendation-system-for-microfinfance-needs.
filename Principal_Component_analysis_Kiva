@@ -1,0 +1,166 @@
+
+import numpy as np
+from sentence_transformers import SentenceTransformer
+import pandas as pd
+import seaborn as sns
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.cluster import KMeans
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import LabelEncoder
+import seaborn as sns
+import functions as fun
+from adjustText import adjust_text
+from sklearn import datasets
+from sklearn import preprocessing
+from statsmodels.multivariate.pca import PCA
+import statsmodels
+import mplcursors
+from tabulate import tabulate
+import plotly.express as px
+from sklearn.datasets import load_diabetes
+import sklearn.decomposition
+
+# Importo i dati
+data = pd.read_csv('kiva_loans.csv', nrows=20000, sep=",")
+#visualizzo le variabili originali
+print("The varibale before the selection: \n",data.columns)
+# stampo i dati in forma chiara
+print('ORIGINAL DATASET\n',tabulate(data.head()))
+# pulisco da eventuali mancanze di dati con fillna perchè altrimenti la riduzione di dati è troppo ampia
+data = data.fillna('')
+
+# PULIZIA DATASET
+
+# creo nuovo dataset eliminando le colonne chiaramente inutili in termini di analisi.
+# Ho deciso di eliminare: id, country_code, partner_id, posted_time, disbursed_time funded_time, tags, date.
+data =  data[["funded_amount", "loan_amount", "activity", "sector", "use", "country", "region", "currency", "term_in_months", "lender_count", "borrower_genders", "repayment_interval"]]
+
+# Conversione variabili in array. (Non so se sia utile)
+activity = np.array(data.activity)
+sector = np.array(data.sector)
+use = np.array(data.use)
+country = np.array(data.country)
+region = np.array(data.region)
+currency = np.array(data.currency)
+borrower_genders = np.array(data.borrower_genders)
+repayment_interval = np.array(data.repayment_interval)
+
+
+
+# TRASFORMO I DATI IN NUMERICI ( QUELLI CHE RIESCO) PER POI APPLICARE L'ANALISI VARIANZA.
+# In questa analisi non tengo in considerazione di : - regione perchè ripete concettualmente il paese
+enc = LabelEncoder()
+data['activity'] = enc.fit_transform(data['activity'])
+data['sector'] = enc.fit_transform(data['sector'])
+data['use'] = enc.fit_transform(data['use'])
+data['country'] = enc.fit_transform(data['country'])
+data['currency'] = enc.fit_transform(data['currency'])
+data['borrower_genders'] = enc.fit_transform(data['borrower_genders'])
+data['repayment_interval'] = enc.fit_transform(data['repayment_interval'])
+
+# Dati su cui applicare analisi varianza
+data_pca = data[["funded_amount", "loan_amount", "activity", "sector", "use", "country", "currency", "term_in_months", "lender_count", "borrower_genders", "repayment_interval"]]
+
+print('NUOVO DATASET RIDOTTO E CONVERTITO IN NUMERICO PER ANALISI VARIANZA \n',tabulate(data_pca.head(), headers="keys", showindex='always'))
+
+'''
+# BOXPLOT DA MOSTRARE SOLO CON PCOHI DATI CARICATI
+sns.boxplot(data = data_pca,
+            color = 'yellow')
+plt.show()'''
+
+# Creare una matrice di covarianza:
+pca = PCA(data_pca, standardize=True, method='eig')
+normalized_dataset = pca.transformed_data
+print('This is the result of pca command\n', pca)
+
+# Covariance Matrix
+# bias =True, so dataset is normalized
+# rowvar = False, each column represents a variable, i.e., a feature. This way we compute the covariance of features as whole instead of the covariance of each row
+covariance_df = pd.DataFrame(data=np.cov(normalized_dataset, bias=True, rowvar=False), columns=data_pca.columns)
+sns.set(font_scale=2)
+'''# Plot Covariance Matrix
+plt.subplots(figsize=(20, 20))
+sns.heatmap(covariance_df, cmap='Blues', linewidths=1.3, annot=True, fmt='.2f', yticklabels=data_pca.columns, cbar_kws={"orientation": "vertical"})
+plt.title('Covariance Matrix', fontsize = 30)
+plt.xticks(rotation=90, size=17)
+plt.yticks(rotation=0, size=17)
+plt.show()'''
+
+
+
+# Run PCA
+
+pca = PCA(data_pca, standardize=True, method='eig')
+components_df = pca.factors
+combined_df = pd.concat([data_pca, components_df], axis=1)
+correlation = combined_df.corr()
+# This matrix will have the correlation between:
+# 1. feature vs features
+# 2. feature vs principal component
+# 3. principal component vs principal component
+# We're removing part of the output to keep only the correlation between features and principal components
+correlation_plot_data = correlation[:-len(components_df.columns)].loc[:, 'comp_00':]
+
+
+# plot correlation matrix
+# Da questo grafico si può osservare come ad esempio country, currency abbiano dei valori abbastanza alti spalmati su tutte le componenti principali.
+# altre variabili sembrano avere valori alti solo su alcune componenti principali e poi abbastanza basse sulle altre. Rimane
+# logico che possiamo usare questo plot solo per capire quali siano le PCA senza dare troppo valore alle correlazioni che derivando da trasformazioni
+# nominali hanno poco senso.
+'''fig, ax = plt.subplots(figsize=(20,7))
+sns.heatmap(correlation_plot_data, cmap='YlGnBu', linewidths=1.3, annot=True, fmt='.2f')
+plt.title('Correlation PC-Variables', fontsize = 30)
+plt.xticks(rotation=90, size=17)
+plt.yticks(rotation=0, size=20)
+plt.show()'''
+#plt.savefig('correlation_pca20k')
+
+# Il plot appena svolot mostra la CORRELAZIONE  tra le PC e le variabili. Tuttavia perdiamo interpretabilità.
+# Le PC codificano diverse funzionalità PER CIASCUNA VARIABILE. Bisogna quindi capire come:
+# - Ogni variabile imapatta su CIASCUNA DELLE COMPONENTI PRINCIPALI. (Mentre dal grafico vedi la PC già fatta e come
+# è correlata alle variabili, ma non come sia stata formata o creata la PC stessa)
+
+# Esamino i carichi (i pesi) di ciascuna componente.
+pca = PCA(data_pca, standardize=True, method='eig')
+loadings = pca.loadings
+print(tabulate(loadings, headers="keys", showindex='always'))
+
+# get correlation matrix plot for loadings
+import seaborn as sns
+import matplotlib.pyplot as plt
+ax = sns.heatmap(loadings, annot=True, cmap='Spectral')
+plt.title('Principal components composition', fontsize = 30)
+plt.show()
+
+
+#I risultati negativi del plot sopra dimostrano che una variabile è carente nello spiegare la varianza di quella PC.
+# Sotto questo punto di vista ha senso vedere come le PCA più importanti siano spiegate per lo più dalle nostre variabili
+# principali (settore, uso ecc). I pesi delle altre variabili tuttavia diventano positivi nelle altre PC sottolineando che seppur
+# il loro uso non è fondamentale per il peso di spiegazione della varianza dell'intero dataset, comunque
+# NON SI POSSONO DIRE INUTILI
+
+# SPIEGAZIONE DELLA VARIANZA DELLE PC.
+# Con il metodo qua sotto andiamo ad analizzare quali sono e quante sono le PC da tenere in considerazione bansandosi sulla
+# spiegazione della Varianza dell'intero dataset.
+
+cumulative_variance_explained = pd.DataFrame(data=pca.rsquare.values, columns=['cumulative_var'])
+print('The explained variance for the PCA \n',cumulative_variance_explained)
+
+# PLOT RELATIVI AL MODELLO PCA
+
+from pca import pca
+
+
+model = pca(normalize=True, n_components=None)
+results= model.fit_transform(data_pca)
+
+# Plot the explained variance
+model.plot()
+
+
+# Biplot with the loadings
+ax = model.biplot(n_feat=3, legend=True, label=True)
+plt.show()
