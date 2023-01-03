@@ -1,0 +1,240 @@
+import joblib
+import pandas as pd
+import numpy as np
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.cluster import KMeans
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+from adjustText import adjust_text
+import mplcursors
+import seaborn as sns
+import nltk
+
+nltk.download('stopwords')
+from nltk.tokenize import word_tokenize
+from io import StringIO
+from tabulate import tabulate
+import time
+import joblib
+from sklearn.metrics.pairwise import euclidean_distances
+from scipy.spatial import distance
+
+# importo i dati
+df = pd.read_csv('kiva_loans.csv', nrows=20000, sep=",")
+print(df.head())
+new_col = range(len(df))
+# aggiungo una nuova colonna che si chiama index che mi serve per localizzare le preferenze
+print(new_col)
+df.insert(0, 'index', new_col)
+
+# riempio valori na
+features = ['activity', 'sector', 'use', 'country', 'currency', 'borrower_genders', 'loan_amount']
+for feature in features:
+    df[feature] = df[feature].fillna('')
+
+
+# ELABORAZIONE VARIABLE SESSO
+
+# PIE CHART SEX
+def parse_genders(borrower_genders):
+    gender_list = borrower_genders.split(",")
+    gender_list = list(set(gender_list))
+    gender_list = [borrower_genders.strip() for borrower_genders in gender_list]
+    if len(gender_list) >= 2:
+        if 'female' in gender_list and 'male' in gender_list:
+            return "male and female"
+        elif 'female' in gender_list:
+            return "multiple female"
+        elif 'male' in gender_list:
+            return "multiple male"
+    elif gender_list[0] == "female":
+        return "female"
+    elif gender_list[0] == "male":
+        return "male"
+    else:
+        return "unknown"
+
+
+df['borrower_genders'] = df.borrower_genders.apply(parse_genders)
+
+
+#  The function will combine all our useful features  from their respective rows,
+#  and return a row with all the combined features in a single string.
+# We will add a new column, combined_features to our existing dataframe (df) and
+# apply the above function to each row (axis = 1)
+
+
+def overall_infos(row):
+    return row['activity'] + " " + row['sector'] + " " + row['use'] + " " + row['country'] + " " + row['currency'] + " " + row['borrower_genders'] + " " + str(row['region']) +" " + str(row['loan_amount'])
+
+
+df["overall_infos"] = df.apply(overall_infos, axis=1)
+print(df)
+
+# crea un nuovo dataframe in cui ha l'id (che per me è l'index) come vuole lui
+df_new = df[['index', 'overall_infos']]
+print('Head of the new_dataset resticted for calcuate cosine distance\n\n', df_new.head())
+
+# PREPROCESSAMENTO DEL TESTO
+# Qui viene svolto un lavoro più elaborato riespetto agli altri script. Vengono tolte parole in eccesso
+
+from nltk.corpus import stopwords
+
+stop = stopwords.words('english')
+
+
+def text_preprocessing(column):
+    # make all words with lower letters
+    column = column.str.lower()
+    # getting rid of any punctution
+    column = column.str.replace('http\S+|www.\S+|@|%|:|,|', '', case=False)
+    # spliting each sentence to words to apply previous funtions on them
+    word_tokens = column.str.split()
+    keywords = word_tokens.apply(lambda x: [item for item in x if item not in stop])
+    # assemble words of each sentence again and assign them in new column
+    for i in range(len(keywords)):
+        keywords[i] = " ".join(keywords[i])
+        column = keywords
+
+    return column
+
+
+# Creazione della nuova variabile pulita da tutte le info in eccesso
+
+df_new['cleaned_infos'] = text_preprocessing(df_new['overall_infos'])
+
+# esempio di come le stringhe di testo vengano ripulite
+
+print('old variable without pre-processing text\n', df['overall_infos'][14705])
+print('new variable with pre-processing text\n', df_new['cleaned_infos'][14705])
+
+# A questo punto dal nuovo dataset a due colonne applico la trasformarzione tramite trasformatore e calcolo la distanza
+# di similarità
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import pairwise_distances
+from scipy.spatial.distance import pdist, squareform
+from Levenshtein import distance
+
+
+start_time1 = time.time()
+CV = CountVectorizer()
+Tfidf = TfidfVectorizer()
+
+# CONVERSIONE VARIABILE OVERALL INFOS --- DA FARE DALL'INIZIO SE SI INSERISCONO NUOVE VARIABILI
+
+# Convertitore tf_idf
+##converted_matrix_tfidf = Tfidf.fit_transform(df_new['cleaned_infos'])
+# save the model to disk
+##joblib.dump(converted_matrix_tfidf, 'Risutati esperimenti/converted_matrix_tfidf_gender_manip_with_region.joblib')
+# load the model from disk
+loaded_model = joblib.load('Risutati esperimenti/converted_matrix_tfidf_gender_manip_with_region.joblib.')
+vectorized_matrix = loaded_model.toarray()
+# ha senso che nei nostri dati ci siano così poche carattersiche per 20000 obs perchè le parole ed i numeri hanno una frequen
+# di ripetizione elevatissima come si vede nella riga sotto
+print(loaded_model.shape)
+# conversione Count Vectorizer
+'''converted_matrix = CV.fit_transform(df_new['cleaned_infos'])
+print(converted_matrix.shape)
+print('Feature names', CV.get_feature_names())
+extended_converted_matrix = converted_matrix.toarray()'''
+# save the model to disk
+# joblib.dump(converted_matrix, 'Risutati esperimenti/converted_matrix_gender_man.joblib')
+# load the model from disk
+# loaded_model = joblib.load('Risutati esperimenti/converted_matrix_gender_man.joblib')
+
+
+# CALCOLI DIFFERENTI DISTANZE E SALVATAGGIO MODELLO
+
+# Calcolo disanza
+##cosine_distance = cosine_similarity(loaded_model)
+# Salvo il modello
+##joblib.dump(euclidean_distance, 'Risutati esperimenti/euclidean_distance.joblib')
+# upload the model
+cosine_distance = joblib.load('Risutati esperimenti/cosine_similarity_with_region.joblib')
+
+
+
+
+# Levhenstein distance
+#transformed_overall_infos = np.array(df_new['cleaned_infos']).reshape(-1, 1)
+# calculate condensed distance matrix by wrapping the Levenshtein distance function
+#levenshtein_distance = pdist(transformed_overall_infos, lambda x, y: distance(x[0], y[0]))
+# salva il modello di LEVheinstein
+#joblib.dump(levenshtein_distance, 'Risutati esperimenti/levenshtein_distance_with_region.joblib')
+# Carica il modello
+##levenshtein_distance = joblib.load('Risutati esperimenti/levenshtein_distance.joblib')
+# get square matrix
+##matrix_leven = squareform(levenshtein_distance)
+##print(matrix_leven)
+
+# Euclidean distance
+# Calcolo la distanza
+#euclidean_distance = euclidean_distances(converted_matrix_tfidf)
+# Salvo il modello
+#joblib.dump(euclidean_distance, 'Risutati esperimenti/euclidean_distance_with_region.joblib')
+# Carico il modello
+#euclidean_distance = joblib.load('Risutati esperimenti/euclidean_distance_with_region.joblib')
+# euclidean distance
+
+
+
+# con questo comando la stanmpa diventa più leggibile e si può accedere al prestito per parola chiave
+# print(tabulate(df[df['use'].str.contains('cow')], headers='keys', tablefmt='psql'))
+
+# Return loans with word
+word = 'cow'
+
+def get_loans_from_keyword(word):
+    contain_values = df[df['use'].str.contains(word)]
+    # in questa riga elimino la visualizzazione di 'overall info' in modo da tenerla pulita nella gui
+    # return contain_values['index','id']
+    return contain_values.iloc[:, [0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 16, 18]]
+
+
+loan_interested = get_loans_from_keyword(word)
+print('the loans of interest are: \n', loan_interested)
+
+# FUNZIONE
+
+loan_id = 667555
+
+
+def get_index_from_id(loan_id):
+    return df[df['id'] == loan_id]['index'].values[0]
+
+
+loan_index = get_index_from_id(loan_id)
+print('tget_index_from_id is \n ', loan_index)
+print("loan_index =", loan_index)
+
+score = list(enumerate(cosine_distance[loan_index]))
+
+# AGGIUNGERE REVERSE=TRUE QUANDO SI USA LA DISTANZA DEL COSENO, QUANDO SI USA LEVENSTEIN E EUCLIDEAN TOGLIERLO.
+# now sort the similar loans in descending order.
+sorted_score = sorted(score, key=lambda x: x[1], reverse=True) # AGGIUNGERE REVERSE=TRUE QUANDO SI USA LA DISTANZA DEL COSENO
+# we will ignore the first score because it will give us a 100% score because it's the same movie
+sorted_score = sorted_score[1:]
+
+# show of the similar loans per index adn similarity score
+print('the sorted score is \n', sorted_score[0:10])
+
+
+# now showing the top 5 movies similar to TMNT according to this algorithm
+def loans_from_index1():
+    i = 0
+    for item in sorted_score:
+        simil_loans = df.loc[df['index'] == item[0]].values[0]
+
+        print('the similar loans are  \n', i + 1, simil_loans)
+        i = i + 1
+        if i > 4:
+            break
+
+
+print(loans_from_index1())
+
+for col in df.columns:
+    print(col)
