@@ -1,6 +1,10 @@
 # A recommendation system for microfinfance needs.
 
 
+Development of a recommendation system to increase the efficiency of microcredit loans for the KIVA platform.
+The inspirational basis of this work refers to the Grameen microcredit bank and the concept of Social Business developed by Muhammad Yunus as solving social or environmental problems in an entrepreneurial way so that virtuous circles with positive impact can be self-sustaining.
+
+
 This project set out to develop a content-based recommendation system. 
 The dataset used was that released by the Mircoredito Kiva platform, one of the largest microcredit platforms in the world. 
 
